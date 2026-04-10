@@ -32,8 +32,10 @@ const sounds = {
   jump: new Audio('./assets/sound/sfx_wing.wav'),
   hit: new Audio('./assets/sound/sfx_hit.wav'),
   point: new Audio('./assets/sound/sfx_point.wav'),
-  die: new Audio('./assets/sound/sfx_die.wav')
+  die: new Audio('./assets/sound/sfx_die.wav'),
+  bgm: new Audio('./assets/sound/bgm_mario.mp3')
 }
+sounds.bgm.loop = true
 
 // pipes
 let pipeArray = []
@@ -120,10 +122,11 @@ function update() {
         }
     }
 
-    if (gameOver)
+  
     if (score > highestScore) {
-                highestScore = score
-            }
+        highestScore = score
+    }
+
 
     while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
         pipeArray.shift()
@@ -135,6 +138,7 @@ function update() {
     context.fillText(score, 5, 45)
 
     if (gameOver) {
+        sounds.bgm.pause()
         context.fillText("GAME OVER", 5, 90)
         context.fillText(`HIGHEST SCORE: ${highestScore}`, 5, 150)
     }
@@ -173,6 +177,13 @@ function placePipes() {
 
 function moveBird(e) {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyX') {
+        if (sounds.bgm.paused) {
+            sounds.bgm.currentTime = 0
+            sounds.bgm.play()
+        }
+
+        sounds.bgm.play() 
+
         velocityY = -6
         sounds.jump.currentTime = 0
         sounds.jump.play()
