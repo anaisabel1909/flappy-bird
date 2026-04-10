@@ -18,6 +18,22 @@ let bird= {
     height: birdHeight,
 }
 
+let frames = [
+    './assets/img/flappybird0.png',
+    './assets/img/flappybird1.png',
+    './assets/img/flappybird2.png',
+    './assets/img/flappybird3.png'
+]
+
+let currentFrame = 0
+
+// sound effects 
+const sounds = {
+  jump: new Audio('./assets/sound/sfx_wing.wav'),
+  hit: new Audio('./assets/sound/sfx_hit.wav'),
+  point: new Audio('./assets/sound/sfx_point.wav'),
+  die: new Audio('./assets/sound/sfx_die.wav')
+}
 
 // pipes
 let pipeArray = []
@@ -43,12 +59,12 @@ window.onload = function() {
     board.width = boardWidth
     board.height = boardHeight
     context = board.getContext("2d")
-
-    // context.fillStyle = 'green'
-    // context.fillRect(bird.x, bird.y, bird.width, bird.height)
     
     birdImg = new Image()
-    birdImg.src = './assets/img/flappybird.png'
+    setInterval(() => {
+        birdImg.src = frames[currentFrame]
+        currentFrame = (currentFrame + 1) % frames.length
+    }, 100)
     birdImg.onload = function() {
         draw(birdImg, bird)
     }
@@ -69,6 +85,7 @@ function draw(img, element) {
 }
 
 function update() {
+
     requestAnimationFrame(update)
     if (gameOver) {
         return
@@ -80,7 +97,9 @@ function update() {
 
     draw(birdImg, bird)
 
-    if (bird.y > board.height) {
+    if (bird.y > board.height && !gameOver) {
+        // sounds.die.currentTime = 0
+        sounds.die.play()
         gameOver = true
     }
     
@@ -91,16 +110,20 @@ function update() {
 
         if (!pipe.passed && bird.x > pipe.x + pipe.width) {
             score += 0.5 // pq tem dois pipes entao ele faz 0.5*2 
+            sounds.point.currentTime = 0
+            sounds.point.play()
             pipe.passed = true
         }
 
         if (detectCollision(bird, pipe)) {
-            if (score > highestScore) {
-                highestScore = score
-            }
             gameOver = true
         }
     }
+
+    if (gameOver)
+    if (score > highestScore) {
+                highestScore = score
+            }
 
     while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
         pipeArray.shift()
@@ -151,6 +174,8 @@ function placePipes() {
 function moveBird(e) {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyX') {
         velocityY = -6
+        sounds.jump.currentTime = 0
+        sounds.jump.play()
 
         if (gameOver) {
             bird.y = birdY
@@ -162,8 +187,15 @@ function moveBird(e) {
 }
 
 function detectCollision(a, b) {
-    return a.x < b.x + b.width &&
+    let collision = a.x < b.x + b.width &&
         a.x + a.width > b.x &&
         a.y < b.y + b.height &&
         a.y +a.height > b.y
+
+    if (collision) {
+        sounds.hit.currentTime = 0
+        sounds.hit.play()
+    }
+
+    return collision 
 }
