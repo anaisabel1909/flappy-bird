@@ -52,6 +52,7 @@ let velocityX = -2 //pipes moving left speed
 let velocityY = 0
 let gravity = 0.2
 
+let gameStarted = false
 let gameOver = false
 let score = 0
 let highestScore = 0
@@ -78,7 +79,7 @@ window.onload = function() {
     bottomPipeImg.src = './assets/img/bottompipe.png'
 
     requestAnimationFrame(update)
-    setInterval(placePipes, 1500)
+    setInterval(placePipes, 1200)
     document.addEventListener("keydown", moveBird)
 }
 
@@ -93,6 +94,22 @@ function update() {
         return
     }
     context.clearRect(0, 0, board.width, board.height)
+
+    if (!gameStarted) {
+        draw(birdImg, bird)
+
+        context.fillStyle = 'white'
+        context.font = "24px sans-serif"
+        context.textAlign = "center"
+
+        context.fillText(
+            "Press SPACE to Start",
+            boardWidth / 2,
+            boardHeight / 2
+        )
+
+        return
+    }
     
     velocityY += gravity
     bird.y = Math.max(bird.y += velocityY, 0)
@@ -142,10 +159,12 @@ function update() {
         context.fillText("GAME OVER", 5, 90)
         context.fillText(`HIGHEST SCORE: ${highestScore}`, 5, 150)
     }
+
+
 }
 
 function placePipes() {
-    if (gameOver) {
+    if (gameOver || !gameStarted) {
         return
     }
 
@@ -182,9 +201,12 @@ function moveBird(e) {
             sounds.bgm.play()
         }
 
-        sounds.bgm.play() 
+        if (!gameStarted) {
+            gameStarted = true
+        } 
 
         velocityY = -6
+
         sounds.jump.currentTime = 0
         sounds.jump.play()
 
