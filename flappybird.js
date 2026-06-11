@@ -1,345 +1,363 @@
-// ─── CONFIGURAÇÕES E VARIÁVEIS DO JOGO ───────────────────────────────────────
+// tela do jogo
+let tela;
+let larguraTela = 360;
+let alturaTela = 640;
+let contexto;
 
-// Board (Tela do jogo)
-let board;
-let boardWidth = 360;
-let boardHeight = 640;
-let context;
+// passarinho
+let larguraPassaro = 34;
+let alturaPassaro = 24;
+let passaroX = larguraTela / 8;
+let passaroY = alturaTela / 2;
+let imagemPassaro;
 
-// Bird (Passarinho)
-let birdWidth = 34;
-let birdHeight = 24;
-let birdX = boardWidth / 8;
-let birdY = boardHeight / 2;
-let birdImg;
-
-let bird = {
-    x: birdX,
-    y: birdY,
-    width: birdWidth,
-    height: birdHeight,
+let passaro = {
+    x: passaroX,
+    y: passaroY,
+    width: larguraPassaro,
+    height: alturaPassaro,
 };
 
-// Animação das asas do passarinho
-let frames = [
+// animação das asas do passarinho
+let quadros = [
     './assets/img/flappybird0.png',
     './assets/img/flappybird1.png',
     './assets/img/flappybird2.png',
     './assets/img/flappybird3.png'
 ];
-let currentFrame = 0;
+let quadroAtual = 0;
 
-// Efeitos Sonoros
-const sounds = {
-    jump: new Audio('./assets/sound/sfx_wing.wav'),
-    hit: new Audio('./assets/sound/sfx_hit.wav'),
-    point: new Audio('./assets/sound/sfx_point.wav'),
-    die: new Audio('./assets/sound/sfx_die.wav'),
-    bgm: new Audio('./assets/sound/bgm_mario.mp3')
+// efeitos sonoros
+const sons = {
+    pulo: new Audio('./assets/sound/sfx_wing.wav'),
+    batida: new Audio('./assets/sound/sfx_hit.wav'),
+    ponto: new Audio('./assets/sound/sfx_point.wav'),
+    morte: new Audio('./assets/sound/sfx_die.wav'),
+    musicaFundo: new Audio('./assets/sound/bgm_mario.mp3')
 };
-sounds.bgm.loop = true;
+sons.musicaFundo.loop = true;
 
-// Pipes (Canos)
-let pipeArray = [];
-let pipeWidth = 64;
-let pipeHeight = 512;
-let pipeX = boardWidth;
-let pipeY = 0;
-let topPipeImg;
-let bottomPipeImg;
-let pipeIntervalId = null; // Guarda a referência do temporizador dos canos
+// canos 
+let canosArray = [];
+let larguraCano = 64;
+let alturaCano = 512;
+let canoX = larguraTela;
+let canoY = 0;
+let imagemCanoSuperior;
+let imagemCanoInferior;
+let idIntervaloCano = null; // guarda a referência do temporizador de criação dos canos
 
-// Física e Estados do Jogo
-let velocityX = -2; // Velocidade dos canos indo para a esquerda
-let velocityY = 0;  // Velocidade vertical do passarinho
-let gravity = 0.2;  // Força da gravidade puxando o passarinho para baixo
+// física
+let velocidadeX = -2; // velocidade dos canos indo para a esquerda
+let velocidadeY = 0;  // velocidade vertical do passarinho
+let gravidade = 0.2;  // gravidade puxando o passarinho para baixo
 
-// Estados possíveis: 'menu' | 'countdown' | 'playing' | 'gameover'
-let gameState = 'menu'; 
-let score = 0;
-let highestScore = parseInt(localStorage.getItem('flappyHighScore')) || 0; // Recupera o recorde salvo no navegador
+// estados possíveis: menu, contagem, jogando, fimdejogo
+let estadoJogo = 'menu'; 
+let pontuacao = 0;
+let recorde = parseInt(localStorage.getItem('flappyHighScore')) || 0; // pega o recorde salvo no navegador
 
-// Contagem Regressiva e Efeitos Visuais
-let countdownValue = 3;
-let countdownTimer = null;
-let menuBirdOffset = 0;   // Usado para fazer o passarinho flutuar no menu
-let menuBirdDir = 1;
-let flashAlpha = 0;       // Controla a transparência do efeito de piscar ao bater
+// contagem regressiva 
+let valorContagem = 3;
+let temporizadorContagem = null;
 
-// ─── INICIALIZAÇÃO DO JOGO ──────────────────────────────────────────────────
+// efeitos visuais
+let oscilacaoPassaroMenu = 0;  // usado para fazer o passarinho flutuar no menu
+let direcaoPassaroMenu = 1;
+let opacidadeFlash = 0;  // controla a transparência do efeito de piscar ao bater
 
+// inicializa o jogo quando a página carrega
 window.onload = function () {
-    board = document.getElementById("board");
-    board.width = boardWidth;
-    board.height = boardHeight;
-    context = board.getContext("2d");
+    tela = document.getElementById("board");
+    tela.width = larguraTela;
+    tela.height = alturaTela;
+    contexto = tela.getContext("2d");
 
-    // Inicializa a imagem do passarinho com troca de frames (Animação)
-    birdImg = new Image();
+    // inicializa a imagem do passarinho e cria a animação do passarinho batendo as asas
+    imagemPassaro = new Image();
     setInterval(() => {
-        birdImg.src = frames[currentFrame];
-        currentFrame = (currentFrame + 1) % frames.length;
+        imagemPassaro.src = quadros[quadroAtual];
+        quadroAtual = (quadroAtual + 1) % quadros.length;
     }, 100);
 
-    // Carrega as imagens dos canos
-    topPipeImg = new Image();
-    topPipeImg.src = './assets/img/toppipe.png';
+    // carrega as imagens dos canos
+    imagemCanoSuperior = new Image();
+    imagemCanoSuperior.src = './assets/img/toppipe.png';
 
-    bottomPipeImg = new Image();
-    bottomPipeImg.src = './assets/img/bottompipe.png';
+    imagemCanoInferior = new Image();
+    imagemCanoInferior.src = './assets/img/bottompipe.png';
 
-    // Inicia o loop principal do Canvas
+    // inicia o loop principal do jogo
     requestAnimationFrame(update);
 
-    // Ouvintes de eventos (Teclado, Clique do Mouse e Toque em telas mobile)
-    document.addEventListener("keydown", moveBird);
-    board.addEventListener("mousedown", moveBird);
-    board.addEventListener("touchstart", (e) => {
-        e.preventDefault(); // Evita o zoom ou scroll indesejado em celulares
-        moveBird(e);
-    }, { passive: false });
+    // listeners para permitir o movimento do passarinho 
+    document.addEventListener("keydown", moverPassaro);
+    tela.addEventListener("mousedown", moverPassaro);
 };
 
-// Auxiliar para desenhar elementos facilmente no Canvas
-function drawElement(img, element) {
-    context.drawImage(img, element.x, element.y, element.width, element.height);
+function desenharPassaro() {
+    contexto.save();
+
+    // move o sistema de coordenadas para o centro do pássaro
+    contexto.translate(
+        passaro.x + passaro.width / 2,
+        passaro.y + passaro.height / 2
+    );
+
+    // rotação baseada na velocidade
+    let angulo = velocidadeY * 0.075;
+
+    // limita os ângulos
+    if (angulo > 0.5) {
+        angulo = 0.5;
+    }
+    if (angulo < -0.5) {
+        angulo = -0.5;
+    }
+    contexto.rotate(angulo);
+
+    // desenha o sprite na tela
+    contexto.drawImage(
+        imagemPassaro,
+        -passaro.width / 2,
+        -passaro.height / 2,
+        passaro.width,
+        passaro.height
+    );
+
+    contexto.restore();
 }
 
-// ─── TRANSIÇÕES DE ESTADO (LÓGICA) ──────────────────────────────────────────
+// função auxiliar para desenhar elementos na tela
+function desenharElemento(img, elemento) {
+    contexto.drawImage(img, elemento.x, elemento.y, elemento.width, elemento.height);
+}
 
-function startCountdown() {
-    gameState = 'countdown';
-    countdownValue = 3;
+function iniciarContagem() {
+    estadoJogo = 'contagem';
+    valorContagem = 3;
     
-    if (countdownTimer) clearInterval(countdownTimer);
+    if (temporizadorContagem) clearInterval(temporizadorContagem);
     
-    // Decrementa o número a cada 900ms
-    countdownTimer = setInterval(() => {
-        countdownValue--;
-        if (countdownValue < 0) {
-            clearInterval(countdownTimer);
-            beginGame();
+    temporizadorContagem = setInterval(() => {
+        valorContagem--;
+        if (valorContagem < 0) {
+            clearInterval(temporizadorContagem);
+            comecarJogo();
         }
-    }, 900);
+    }, 1000);
 }
 
-function beginGame() {
-    gameState = 'playing';
-    bird.y = birdY;
-    velocityY = 0;
-    pipeArray = [];
-    score = 0;
+function comecarJogo() {
+    estadoJogo = 'jogando';
+    passaro.y = passaroY;
+    velocidadeY = 0;
+    canosArray = [];
+    pontuacao = 0;
 
-    // Toca a música de fundo
-    sounds.bgm.currentTime = 0;
-    sounds.bgm.play();
+    // inicia música de fundo
+    sons.musicaFundo.currentTime = 0;
+    sons.musicaFundo.play();
 
-    // Começa a gerar os canos periodicamente
-    if (pipeIntervalId) clearInterval(pipeIntervalId);
-    pipeIntervalId = setInterval(placePipes, 1200);
+    // evita acumular ids de intervalos antigos
+    if (idIntervaloCano) clearInterval(idIntervaloCano);
+    // cria um intervalo que repete a chamada da função de geração de canos a cada 1.2seg
+    // também salva o id do intervalo para poder encerrá-lo no fim do jogo
+    idIntervaloCano = setInterval(gerarCanos, 1200);
 }
 
-function triggerGameOver() {
-    if (gameState === 'gameover') return;
-    gameState = 'gameover';
+function fimDeJogo() {
+    // if (estadoJogo === 'fimdejogo') return;
+    estadoJogo = 'fimdejogo';
 
-    sounds.bgm.pause();
-    sounds.die.play();
+    sons.musicaFundo.pause();
+    sons.morte.play();
 
-    flashAlpha = 0.6; // Ativa o flash vermelho na tela
-    clearInterval(pipeIntervalId); // Para de gerar novos canos
+    opacidadeFlash = 0.6; // ativa o flash vermelho na tela
+    clearInterval(idIntervaloCano); // Para de gerar novos canos
 
-    // Salva o novo Recorde localmente se o score atual for maior
-    if (score > highestScore) {
-        highestScore = score;
-        localStorage.setItem('flappyHighScore', highestScore);
+    // salva o novo recorde no localStorage se a pontuação atual for maior
+    if (pontuacao > recorde) {
+        recorde = pontuacao;
+        localStorage.setItem('flappyHighScore', recorde);
     }
 }
 
-// ─── ENTRADA DO USUÁRIO (CONTROLES) ──────────────────────────────────────────
-
-function moveBird(e) {
-    // Se for teclado, filtra apenas as teclas de pulo configuradas originalmente
+function moverPassaro(e) {
     if (e.type === 'keydown') {
-        if (e.code !== 'Space' && e.code !== 'ArrowUp' && e.code !== 'KeyX') return;
+        if (e.code !== 'Space') return;
     }
 
-    // Ações baseadas no estado atual do jogo
-    if (gameState === 'menu') {
-        startCountdown();
+    // ações baseadas no estado atual do jogo
+    if (estadoJogo === 'menu') {
+        iniciarContagem();
     } 
-    else if (gameState === 'playing') {
-        velocityY = -5.5; // Pulo do passarinho
-        sounds.jump.currentTime = 0;
-        sounds.jump.play();
+    else if (estadoJogo === 'jogando') {
+        velocidadeY = -5.5; // pulo do passarinho
+        sons.pulo.currentTime = 0;
+        sons.pulo.play();
     } 
-    else if (gameState === 'gameover') {
-        // Se o jogo acabou, qualquer clique/tecla reinicia para a contagem
-        startCountdown();
+    else if (estadoJogo === 'fimdejogo') {
+        // se o jogo acabou, qualquer clique/tecla reinicia para a contagem
+        iniciarContagem();
     }
 }
-
-// ─── LOOP PRINCIPAL E RENDERIZAÇÃO (CANVAS) ─────────────────────────────────
 
 function update() {
     requestAnimationFrame(update);
-    context.clearRect(0, 0, board.width, board.height);
+    contexto.clearRect(0, 0, tela.width, tela.height);
 
-    // CONFIGURAÇÃO DE TEXTO PADRÃO
-    context.fillStyle = 'white';
-    context.textAlign = "center";
-    context.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    context.shadowBlur = 4;
+    // configuração padrão dos textos
+    contexto.fillStyle = 'white';
+    contexto.textAlign = "center";
+    contexto.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    contexto.shadowBlur = 4;
 
-    // ESTADO: MENU INICIAL
-    if (gameState === 'menu') {
-        // Faz o passarinho flutuar de cima para baixo suavemente
-        menuBirdOffset += 0.05 * menuBirdDir;
-        if (Math.abs(menuBirdOffset) > 1) menuBirdDir *= -1;
-        bird.y = (boardHeight / 2) - 40 + (menuBirdOffset * 10);
+    if (estadoJogo === 'menu') {
+        oscilacaoPassaroMenu += 0.05 * direcaoPassaroMenu; // flutuando para para cima
+        if (Math.abs(oscilacaoPassaroMenu) > 1) direcaoPassaroMenu *= -1; // quando oscilacaoPassaroMenu atinge 1, faz o pássaro mudar de direção e flutuar pra baixo
+        passaro.y = (alturaTela / 2) - 40 + (oscilacaoPassaroMenu * 10); // aplica de fato as mudanças no pássaro
         
-        drawElement(birdImg, bird);
+        desenharPassaro();
 
-        context.font = "bold 26px sans-serif";
-        context.fillText("FLAPPY BIRD", boardWidth / 2, boardHeight / 3 + 10);
+        contexto.font = "bold 26px sans-serif";
+        contexto.fillText("FLAPPY BIRD", larguraTela / 2, alturaTela / 3 + 10);
         
-        context.font = "16px sans-serif";
-        context.fillText("Pressione ESPAÇO ou CLIQUE", boardWidth / 2, boardHeight / 2 + 50);
-        context.fillText("para Iniciar", boardWidth / 2, boardHeight / 2 + 75);
+        contexto.font = "16px sans-serif";
+        contexto.fillText("Pressione ESPAÇO ou CLIQUE", larguraTela / 2, alturaTela / 2 + 50);
+        contexto.fillText("para Iniciar", larguraTela / 2, alturaTela / 2 + 75);
 
-        context.fillStyle = '#ffe066';
-        context.fillText(`RECORDE: ${highestScore}`, boardWidth / 2, boardHeight / 2 + 130);
+        contexto.fillStyle = '#ffe066';
+        contexto.fillText(`RECORDE: ${recorde}`, larguraTela / 2, alturaTela / 2 + 130);
     }
 
-    // ESTADO: CONTAGEM REGRESSIVA
-    else if (gameState === 'countdown') {
-        bird.y = birdY; // Mantém o pássaro fixo no centro
-        drawElement(birdImg, bird);
+    else if (estadoJogo === 'contagem') {
+        passaro.y = passaroY; // mantém o pássaro fixo no centro
+        desenharPassaro();
 
-        context.font = "bold 70px sans-serif";
-        context.fillText(countdownValue === 0 ? "GO!" : countdownValue, boardWidth / 2, boardHeight / 3);
+        contexto.font = "bold 70px sans-serif";
+        contexto.fillText(valorContagem === 0 ? "VAI!" : valorContagem, larguraTela / 2, alturaTela / 3);
         
-        context.font = "16px sans-serif";
-        context.fillText("PREPARA!", boardWidth / 2, boardHeight / 3 + 60);
+        contexto.font = "16px sans-serif";
+        contexto.fillText("PREPARA!", larguraTela / 2, alturaTela / 3 + 60);
     }
 
-    // ESTADO: JOGANDO OU GAME OVER
-    else if (gameState === 'playing' || gameState === 'gameover') {
+    else if (estadoJogo === 'jogando' || estadoJogo === 'fimdejogo') {
         
-        if (gameState === 'playing') {
-            // Aplica a gravidade e atualiza a posição do pássaro
-            velocityY += gravity;
-            bird.y = Math.max(bird.y + velocityY, 0); // Impede que saia pelo topo
+        if (estadoJogo === 'jogando') {
+            // aplica a gravidade e atualiza a posição do pássaro
+            velocidadeY += gravidade; // no canvas, o ponto (0, 0) é no canto superior esquerdo da tela, então aumentar Y significa descer 
+            passaro.y = Math.max(passaro.y + velocidadeY, 0); // impede que saia pelo topo
 
-            // Verifica se caiu no chão
-            if (bird.y > board.height) {
-                triggerGameOver();
+            // verifica se caiu no chão
+            if (passaro.y > tela.height) {
+                fimDeJogo();
             }
         }
 
-        drawElement(birdImg, bird);
+        desenharPassaro();
 
-        // Atualiza e desenha os Canos
-        for (let i = 0; i < pipeArray.length; i++) {
-            let pipe = pipeArray[i];
+        // atualiza e desenha os canos
+        for (let i = 0; i < canosArray.length; i++) {
+            let cano = canosArray[i];
             
-            if (gameState === 'playing') {
-                pipe.x += velocityX; // Move os canos para a esquerda
+            if (estadoJogo === 'jogando') {
+                cano.x += velocidadeX; // move os canos para a esquerda
                 
-                // Contabilização de pontos (0.5 para cada metade do cano, somando 1 ponto por par)
-                if (!pipe.passed && bird.x > pipe.x + pipe.width) {
-                    score += 0.5;
-                    sounds.point.currentTime = 0;
-                    sounds.point.play();
-                    pipe.passed = true;
+                // contabilização dos pontos (0.5 para cada metade do cano, somando 1 ponto por par)
+                if (!cano.passou && passaro.x > cano.x + cano.width) {
+                    pontuacao += 0.5;
+                    sons.ponto.currentTime = 0;
+                    sons.ponto.play();
+                    cano.passou = true;
                 }
 
-                // Checa colisão mecânica
-                if (detectCollision(bird, pipe)) {
-                    triggerGameOver();
+                // checa colisão mecânica
+                if (detectarColisao(passaro, cano)) {
+                    fimDeJogo();
                 }
             }
             
-            drawElement(pipe.img, pipe);
+            desenharElemento(cano.imagem, cano);
         }
 
-        // Remove canos antigos que saíram totalmente da tela esquerda
-        while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
-            pipeArray.shift();
+        // remove canos antigos que saíram totalmente da tela esquerda
+        while (canosArray.length > 0 && canosArray[0].x < -larguraCano) {
+            canosArray.shift();
         }
 
-        // Desenha o Score atualizado centralizado no topo da tela
-        context.font = "bold 32px sans-serif";
-        context.fillText(Math.floor(score), boardWidth / 2, 60);
+        // escreve a pontuação atualizada
+        contexto.font = "bold 32px sans-serif";
+        contexto.fillText(Math.floor(pontuacao), larguraTela / 2, 60);
 
-        // Detalhes extras se for GAME OVER
-        if (gameState === 'gameover') {
-            context.fillStyle = '#ff4040';
-            context.font = "bold 30px sans-serif";
-            context.fillText("GAME OVER", boardWidth / 2, boardHeight / 3);
+        // escreve os detalhes no game over
+        if (estadoJogo === 'fimdejogo') {
+            contexto.fillStyle = '#ff4040';
+            contexto.font = "bold 30px sans-serif";
+            contexto.fillText("FIM DE JOGO", larguraTela / 2, alturaTela / 3);
 
-            context.fillStyle = 'white';
-            context.font = "16px sans-serif";
-            context.fillText(`Pontuação: ${Math.floor(score)}`, boardWidth / 2, boardHeight / 3 + 50);
-            context.fillText(`Melhor Pontuação: ${highestScore}`, boardWidth / 2, boardHeight / 3 + 80);
+            contexto.fillStyle = 'white';
+            contexto.font = "16px sans-serif";
+            contexto.fillText(`Pontuação: ${Math.floor(pontuacao)}`, larguraTela / 2, alturaTela / 3 + 50);
+            contexto.fillText(`Melhor Pontuação: ${recorde}`, larguraTela / 2, alturaTela / 3 + 80);
             
-            context.fillStyle = '#ffe066';
-            context.fillText("Clique ou Espaço para reiniciar", boardWidth / 2, boardHeight / 2 + 100);
+            contexto.fillStyle = '#ffe066';
+            contexto.fillText("Clique ou Espaço para reiniciar", larguraTela / 2, alturaTela / 2 + 100);
         }
     }
 
-    // EFEITO VISUAL: FLASH DE COLISÃO VERMELHO
-    if (flashAlpha > 0) {
-        context.shadowBlur = 0; // Remove sombras para o preenchimento total da tela
-        context.fillStyle = `rgba(255, 0, 0, ${flashAlpha})`;
-        context.fillRect(0, 0, boardWidth, boardHeight);
-        flashAlpha -= 0.04; // Dissipa o flash gradativamente
+    // flash vermelho 
+    if (opacidadeFlash > 0) {
+        contexto.shadowBlur = 0; 
+        contexto.fillStyle = `rgba(255, 0, 0, ${opacidadeFlash})`;
+        contexto.fillRect(0, 0, larguraTela, alturaTela);
+        opacidadeFlash -= 0.04; // dissipa o flash
     }
 
-    // Reseta configurações de sombra para evitar vazamento em outros renders
-    context.shadowBlur = 0;
+    // reseta configurações de sombra para evitar vazamento em outros renders
+    contexto.shadowBlur = 0;
 }
 
-// ─── GERADOR DE CANOS E DETECTOR DE COLISÃO ──────────────────────────────────
+function gerarCanos() {
+    if (estadoJogo !== 'jogando') return;
 
-function placePipes() {
-    if (gameState !== 'playing') return;
+    // escolhendo uma posição Y aleatória para o cano
+    let canoAleatorioY = canoY - alturaCano / 4 - Math.random() * (alturaCano / 2);
 
-    let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
+    // escolhendo um espaçamento aleatório entre os canos de cima e de baixo
+    let arrayEspacamento = [4, 5];
+    let espacamento = tela.height / arrayEspacamento[Math.floor(Math.random() * 2)];
 
-    let openingSpaceArray = [4, 5]
-    let openingSpace = board.height / openingSpaceArray[Math.floor(Math.random() * 2)];
-
-    // Cano Superior
-    pipeArray.push({
-        img: topPipeImg,
-        x: pipeX,
-        y: randomPipeY,
-        width: pipeWidth,
-        height: pipeHeight,
-        passed: false
+    // cano superior
+    canosArray.push({
+        imagem: imagemCanoSuperior,
+        x: canoX,
+        y: canoAleatorioY,
+        width: larguraCano,
+        height: alturaCano,
+        passou: false
     });
 
-    // Cano Inferior
-    pipeArray.push({
-        img: bottomPipeImg,
-        x: pipeX,
-        y: randomPipeY + pipeHeight + openingSpace,
-        width: pipeWidth,
-        height: pipeHeight,
-        passed: false
+    // cano inferior
+    canosArray.push({
+        imagem: imagemCanoInferior,
+        x: canoX,
+        y: canoAleatorioY + alturaCano + espacamento,
+        width: larguraCano,
+        height: alturaCano,
+        passou: false
     });
 }
 
-function detectCollision(a, b) {
-    let collision = a.x < b.x + b.width &&
-                    a.x + a.width > b.x &&
-                    a.y < b.y + b.height &&
-                    a.y + a.height > b.y;
+function detectarColisao(a, b) {
+    let colisao = a.x < b.x + b.width &&
+                  a.x + a.width > b.x &&
+                  a.y < b.y + b.height &&
+                  a.y + a.height > b.y;
 
-    if (collision) {
-        sounds.hit.currentTime = 0;
-        sounds.hit.play();
+    if (colisao) {
+        sons.batida.currentTime = 0;
+        sons.batida.play();
     }
-    return collision;
+    return colisao;
 }
