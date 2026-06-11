@@ -214,10 +214,9 @@ function update() {
     contexto.shadowBlur = 4;
 
     if (estadoJogo === 'menu') {
-        // faz o passarinho flutuar de cima para baixo
-        oscilacaoPassaroMenu += 0.05 * direcaoPassaroMenu;
-        if (Math.abs(oscilacaoPassaroMenu) > 1) direcaoPassaroMenu *= -1;
-        passaro.y = (alturaTela / 2) - 40 + (oscilacaoPassaroMenu * 10);
+        oscilacaoPassaroMenu += 0.05 * direcaoPassaroMenu; // flutuando para para cima
+        if (Math.abs(oscilacaoPassaroMenu) > 1) direcaoPassaroMenu *= -1; // quando oscilacaoPassaroMenu atinge 1, faz o pássaro mudar de direção e flutuar pra baixo
+        passaro.y = (alturaTela / 2) - 40 + (oscilacaoPassaroMenu * 10); // aplica de fato as mudanças no pássaro
         
         desenharPassaro();
 
@@ -247,7 +246,7 @@ function update() {
         
         if (estadoJogo === 'jogando') {
             // aplica a gravidade e atualiza a posição do pássaro
-            velocidadeY += gravidade;
+            velocidadeY += gravidade; // no canvas, o ponto (0, 0) é no canto superior esquerdo da tela, então aumentar Y significa descer 
             passaro.y = Math.max(passaro.y + velocidadeY, 0); // impede que saia pelo topo
 
             // verifica se caiu no chão
